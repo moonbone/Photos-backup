@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+config.toml
+/data/
+/config/
+*.db
+*.db-wal
+*.db-shm
+.DS_Store

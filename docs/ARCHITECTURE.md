@@ -30,7 +30,7 @@ Per-file processing:
 1. **Stability check** (daemon mode): skip files still being written (size unchanged for a settle window).
 2. **Hash**: stream SHA-256.
 3. **Dedup**: if the hash exists in `assets`, record only a new `asset_instances` row (this source also has it) and stop.
-4. **Metadata extraction**: ExifTool (one long-lived `exiftool -stay_open` process for throughput) → capture datetime, camera make/model, lens, GPS, dimensions, orientation, full tag dump stored as JSON.
+4. **Metadata extraction**: ExifTool (invoked in batches of 32 files per process for throughput; Pillow fallback when exiftool is absent) → capture datetime, camera make/model, lens, GPS, dimensions, orientation, full tag dump stored as JSON.
 5. **Capture-date resolution** (see §3.1).
 6. **Derivatives**: thumbnail (~400px) and preview (~2048px) JPEGs via Pillow, with EXIF orientation applied. RAW files use the embedded JPEG preview extracted by ExifTool.
 7. **Catalog write**: `assets` row + `asset_instances` row + counters on the `ingest_runs` row. The asset enters backup state `new`.
@@ -175,7 +175,7 @@ Only `verified` counts toward SAFE in the device-deletion workflow (see INTEGRIT
 `photovault sync` (also runnable on a schedule / at the end of `watch` cycles):
 
 1. Select assets in state `new` (originals first, then derivatives), oldest capture date first.
-2. Upload with boto3, passing `ChecksumSHA256` computed at ingest — the server recomputes and **rejects the upload if the bytes don't match**. Multipart (with per-part checksums and a composed full-object check) for files over the multipart threshold (default 64 MB, covers big RAW/video files).
+2. Upload with boto3, passing `ChecksumSHA256` computed at ingest. Two checks guard every upload: the file is **re-hashed immediately before upload** (refusing to send bytes that no longer match the catalog — catches local bit-rot between ingest and sync), and the server recomputes the checksum of the received bytes and **rejects the upload on mismatch**. Single-request uploads support objects up to 5 GB, ample for photos and RAW files; multipart with composed checksums is a future extension for very large videos.
 3. On success: write `remote_copies`, promote to `uploaded`.
 4. Retries with exponential backoff + jitter; a file that fails repeatedly is marked in the run notes and left in `new` — sync never silently drops work.
 5. Finish by snapshotting the catalog (§4) and printing/logging a run summary.
@@ -184,7 +184,7 @@ Interrupted syncs are harmless: state lives in the catalog, uploads are idempote
 
 ## 8. Web UI + API
 
-FastAPI serving both the JSON API and the UI (server-rendered Jinja templates + htmx; small enough to swap for React later if wanted).
+FastAPI serving both the JSON API and the UI (server-rendered Jinja templates, dependency-free CSS; small enough to swap for React later if wanted).
 
 Views:
 
@@ -203,10 +203,10 @@ API notes: token-authenticated (single-user); thumbnails always served from loca
 
 ## 10. Restore
 
-`photovault restore [--source X] [--from DATE] [--to DATE] [--sha ...] --dest <dir>`:
+`photovault restore [--source X] [--from DATE] [--to DATE] --dest <dir>`:
 
-- Downloads originals (and sidecars), **re-hashes each file on arrival** and fails loudly on mismatch.
-- Reconstructs `original_filename` and folder structure (by capture date `YYYY/MM/` by default, or the recorded `original_path` with `--original-layout`).
+- Downloads originals, **re-hashes each file on arrival** and fails loudly on mismatch.
+- Reconstructs `original_filename` under a capture-date `YYYY/MM/` layout (restoring the recorded `original_path` layout is a roadmap extension).
 - `photovault rebuild --from-bucket` restores the *catalog* itself from the newest snapshot (§4).
 
 ## 11. Configuration

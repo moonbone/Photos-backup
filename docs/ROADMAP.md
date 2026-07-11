@@ -2,6 +2,12 @@
 
 Phased milestones, each independently useful and shippable. Acceptance criteria are written so a milestone is "done" only when it can be demonstrated end-to-end.
 
+**Status: M1–M5 are implemented and covered by the test suite** (unit tests for
+every date pattern; sync/verify/device/restore/web exercised against a mocked
+S3 via moto). Notes on scope deltas: uploads are single-request (up to 5 GB)
+rather than multipart; the web UI is plain server-rendered templates;
+`import-card` and active device pull remain future work (M6).
+
 ## M1 — Core ingest & catalog (CLI)
 
 Scope: project scaffolding (pyproject, Typer CLI, SQLAlchemy models, config loading), `photovault ingest`, metadata extraction, capture-date resolution chain (EXIF → filename patterns → mtime, with `capture_ts_source` recorded), thumbnails/previews, dedup, `ingest_runs` accounting, local library storage.
@@ -40,18 +46,19 @@ Acceptance:
 
 ## M5 — Continuous operation
 
-Scope: `photovault watch` daemon (stability window, per-source folders, periodic auto-sync), `POST /api/upload` endpoint (token auth, client-checksum echo) for PhotoSync/Shortcuts, scheduled verify documentation (cron/systemd), Docker + compose deployment, `photovault import-card` helper.
+Scope: `photovault watch` daemon (stability window, per-source folders, periodic auto-sync), `POST /api/upload` endpoint (token auth, client-checksum echo) for PhotoSync/Shortcuts, scheduled verify documentation (cron/systemd), Docker + compose deployment.
 
 Acceptance:
 - A photo taken on a phone lands in the timeline with no manual steps (via sync tool or upload endpoint) and reaches `verified` after the scheduled verify.
 
 ## M6 — Extensions (prioritize as needed)
 
-- `photovault restore` polish + `rebuild --from-bucket` (catalog disaster recovery).
+- Restore polish: `--original-layout`, restore sidecars, per-sha selection in the CLI.
+- `photovault import-card` helper + active device pull (SD/MTP auto-import on mount).
+- Multipart uploads with composed checksums for >5 GB videos.
 - Optional client-side encryption (age/AES-GCM) with documented trade-offs.
 - Map view from GPS metadata.
 - Near-duplicate report (perceptual hash) — review tool only, never auto-delete.
-- Full video metadata; ffmpeg-based video thumbnails everywhere.
+- Full video metadata (video thumbnails already work where ffmpeg is installed).
 - Second-bucket replication (guards against provider loss).
 - Manual date-correction UI (stored as `capture_ts_source = manual` overrides).
-- Active device pull (SD card / MTP auto-import on mount).

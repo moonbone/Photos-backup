@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<form class="filters" method="get" action="/">
+  <select name="source">
+    <option value="">all sources</option>
+    {% for s in sources %}
+    <option value="{{ s.name }}" {% if query.get('source') == s.name %}selected{% endif %}>{{ s.name }}</option>
+    {% endfor %}
+  </select>
+  <select name="camera">
+    <option value="">all cameras</option>
+    {% for c in cameras %}
+    <option value="{{ c }}" {% if query.get('camera') == c %}selected{% endif %}>{{ c }}</option>
+    {% endfor %}
+  </select>
+  <select name="kind">
+    <option value="">all types</option>
+    {% for k in ['photo','raw','video'] %}
+    <option value="{{ k }}" {% if query.get('kind') == k %}selected{% endif %}>{{ k }}</option>
+    {% endfor %}
+  </select>
+  <select name="state">
+    <option value="">any backup state</option>
+    {% for st in ['new','uploaded','verified'] %}
+    <option value="{{ st }}" {% if query.get('state') == st %}selected{% endif %}>{{ st }}</option>
+    {% endfor %}
+  </select>
+  <select name="ts_source" title="How the capture date was determined">
+    <option value="">any date source</option>
+    {% for t in ['exif','filename','mtime','manual'] %}
+    <option value="{{ t }}" {% if query.get('ts_source') == t %}selected{% endif %}>date: {{ t }}</option>
+    {% endfor %}
+  </select>
+  <button>Filter</button>
+</form>
+
+{% for day, assets in groups.items() %}
+<h2 class="day">{{ day }}</h2>
+<div class="grid">
+  {% for a in assets %}
+  <a href="/photo/{{ a.sha256 }}" title="{{ a.capture_ts }} · {{ a.camera_model or a.kind }}">
+    {% if a.thumb_state == 'done' %}
+    <img src="/thumb/{{ a.sha256 }}" loading="lazy" alt="">
+    {% else %}
+    <span class="noimg">{{ a.kind }}<br>{{ a.sha256[:12] }}</span>
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p>No photos yet. Ingest something: <code>photovault ingest &lt;folder&gt; --source &lt;name&gt;</code></p>
+{% endfor %}
+
+<div class="pager">
+  {% if page > 0 %}<a href="?{% for k,v in params.items() %}{{k}}={{v}}&{% endfor %}page={{ page - 1 }}">← newer</a>{% endif %}
+  {% if has_next %}<a href="?{% for k,v in params.items() %}{{k}}={{v}}&{% endfor %}page={{ page + 1 }}">older →</a>{% endif %}
+</div>
+{% endblock %}

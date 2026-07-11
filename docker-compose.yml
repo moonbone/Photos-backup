@@ -1,0 +1,27 @@
+# PhotoVault on a NAS/home server:
+#   - `web` serves the browse UI + upload API
+#   - `watch` continuously ingests staging folders and syncs to the cloud
+# Put config.toml in ./config/ and photos land under ./data/.
+services:
+  web:
+    build: .
+    ports:
+      - "8420:8420"
+    volumes:
+      - ./config:/config:ro
+      - ./data:/data
+    environment:
+      - PHOTOVAULT_S3_KEY=${PHOTOVAULT_S3_KEY}
+      - PHOTOVAULT_S3_SECRET=${PHOTOVAULT_S3_SECRET}
+    restart: unless-stopped
+
+  watch:
+    build: .
+    command: photovault watch --interval 60
+    volumes:
+      - ./config:/config:ro
+      - ./data:/data
+    environment:
+      - PHOTOVAULT_S3_KEY=${PHOTOVAULT_S3_KEY}
+      - PHOTOVAULT_S3_SECRET=${PHOTOVAULT_S3_SECRET}
+    restart: unless-stopped

@@ -64,6 +64,39 @@ The catalog is snapshotted to the bucket after every sync. Point a fresh PhotoVa
 
 Python 3.12 · Typer (CLI) · FastAPI (API/web) · SQLAlchemy + SQLite (catalog) · boto3 (S3) · ExifTool via PyExifTool (metadata) · Pillow (thumbnails)
 
+## Quick start
+
+```bash
+# host needs Python 3.11+ and exiftool (apt install libimage-exiftool-perl)
+pip install .
+
+cp config.example.toml ~/.config/photovault/config.toml   # edit: library path, bucket, sources
+export PHOTOVAULT_S3_KEY=... PHOTOVAULT_S3_SECRET=...
+
+photovault init
+photovault ingest ~/staging/phone-a --source phone-a   # catalog + thumbnail everything
+photovault sync                                        # upload with checksum verification
+photovault verify --remote                             # independent verification pass
+photovault check-device /mnt/sdcard                    # is this device safe to wipe?
+photovault serve                                       # browse at http://localhost:8420
+```
+
+Or with Docker: put `config.toml` in `./config/`, then `docker compose up -d`
+(runs the web UI plus the `watch` ingest/sync daemon).
+
+The safe-deletion loop:
+
+```bash
+photovault check-device /mnt/sdcard --out report.json  # exit 0 only if 100% SAFE
+photovault prune-device /mnt/sdcard --report report.json            # dry-run
+photovault prune-device /mnt/sdcard --report report.json --execute  # actually delete
+```
+
 ## Status
 
-Design phase. See [docs/ROADMAP.md](docs/ROADMAP.md) for the implementation plan.
+Implemented: ingest (multi-source, dedup, EXIF + filename-date inference,
+thumbnails), verified cloud sync with catalog snapshots, remote verification
+with rotating deep checks, check-device/prune-device, restore, catalog rebuild
+from bucket, web UI (timeline/filters/detail/dashboard), watch daemon, and the
+mobile upload API. Test suite: `pip install -e ".[dev]" && pytest`.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for what's next (M6 extensions).

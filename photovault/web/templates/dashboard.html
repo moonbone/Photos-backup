@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · PhotoVault{% endblock %}
+{% block content %}
+<h2>Status</h2>
+
+{% if pending %}
+<div class="warnbox">⚠ {{ pending }} asset(s) not yet uploaded — run <code>photovault sync</code></div>
+{% endif %}
+
+<div class="cards">
+  <div class="card"><div class="num">{{ state_counts.get('verified', 0) }}</div>verified in cloud</div>
+  <div class="card"><div class="num">{{ state_counts.get('uploaded', 0) }}</div>uploaded, awaiting verify</div>
+  <div class="card"><div class="num">{{ state_counts.get('new', 0) }}</div>pending upload</div>
+  <div class="card"><div class="num">{{ '%.1f'|format(total_bytes / 1073741824) }} GB</div>library size</div>
+</div>
+
+<h3>Capture-date provenance</h3>
+<table class="meta">
+  {% for src, n in ts_counts.items() %}
+  <tr><td>{{ src }}</td><td>{{ n }}
+    {% if src != 'exif' and n %}
+      — <a href="/?ts_source={{ src }}">review</a>
+    {% endif %}
+  </td></tr>
+  {% endfor %}
+</table>
+
+<h3>Per source</h3>
+<table class="meta">
+  {% for name, n in per_source %}
+  <tr><td><a href="/?source={{ name }}">{{ name }}</a></td><td>{{ n }} assets</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Recent ingest runs</h3>
+<table class="meta">
+  {% for run, source_name in last_ingests %}
+  <tr><td>{{ run.started_at }}</td>
+      <td>{{ source_name }}: {{ run.files_new }} new, {{ run.files_duplicate }} dup,
+          {{ run.files_failed }} failed</td></tr>
+  {% else %}<tr><td colspan="2">none yet</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Recent verify runs</h3>
+<table class="meta">
+  {% for run in last_verifies %}
+  <tr><td>{{ run.started_at }}</td>
+      <td>{{ run.kind }}: {{ run.objects_checked }} checked,
+          {% if run.missing or run.mismatches %}
+          <strong>⚠ {{ run.missing }} missing, {{ run.mismatches }} mismatched</strong>
+          {% else %}all good{% endif %}
+      </td></tr>
+  {% else %}<tr><td colspan="2">none yet</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
