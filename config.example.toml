@@ -37,6 +37,17 @@ staging = "/data/photovault/staging/dslr"
 # extra_filename_date_patterns = ['holiday(?P<D>\d{2})(?P<M>\d{2})(?P<Y>\d{4})']
 extra_filename_date_patterns = []
 
+[browse]
+# Human-browsable local tree of everything imported (photos AND videos),
+# grouped by capture date, filenames prefixed with the capture timestamp so
+# sorting by name == sorting by capture time:
+#   browse/2024/2024-07-11/20240711_183000_IMG_1234.jpg
+enabled = true
+# path = "/data/photovault/browse"   # default: <library>/browse
+group_format = "%Y/%Y-%m-%d"         # strftime, one folder per day inside a year folder
+prefix_format = "%Y%m%d_%H%M%S"      # strftime, prepended to the original filename
+link = "hardlink"                    # hardlink (no extra space) | copy | symlink
+
 [verify]
 # Objects deep-verified (downloaded + re-hashed) per verify run, rotating
 # through the least-recently-verified first.

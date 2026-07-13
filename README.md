@@ -13,6 +13,7 @@ Its defining feature is **trust before deletion**: PhotoVault can prove that eve
 - **Safe-delete workflow** — `photovault check-device` hashes what is *actually on the device right now* and classifies every file; nothing is deletable until it is cataloged **and** its cloud copy is verified. Deletion is a separate, explicit, dry-run-by-default command.
 - **Self-hosted web UI** — timeline browsing by day/month/year, filters by source and camera, per-photo metadata panel, and a backup-status dashboard. Runs on a NAS, home server, or any always-on PC; usable from phone or desktop browsers.
 - **Self-describing backup** — the catalog database is snapshotted to the cloud after every run, so the entire library can be rebuilt from the bucket alone if the host machine dies.
+- **Human-browsable local tree** — alongside the content-addressed library, every imported photo and video is hardlinked (no extra disk space) into `browse/2024/2024-07-11/20240711_183000_IMG_1234.jpg`: grouped by capture date, filename prefixed with the capture timestamp so sorting by name is sorting by capture time. Folder grouping and prefix formats are configurable.
 - **Restore** — pull originals back by source and date range, re-hashed on arrival, with original filenames and folder structure reconstructed.
 
 ## Architecture at a glance
@@ -44,6 +45,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design, [docs/INTE
 | `photovault check-device <path> --source <name>` | Classify every file on a device as SAFE / UPLOADED-UNVERIFIED / KNOWN-NOT-UPLOADED / UNKNOWN |
 | `photovault prune-device <path> --report <json>` | Delete only SAFE files from a fresh report (dry-run by default) |
 | `photovault restore --source X --from DATE --to DATE --dest <dir>` | Download originals, re-hash on arrival, restore names/structure |
+| `photovault build-browse [--clean]` | (Re)build the human-browsable date/timestamp tree from the catalog |
 | `photovault serve` | Run the web UI + API |
 
 ## FAQ

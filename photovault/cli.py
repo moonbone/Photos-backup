@@ -174,6 +174,32 @@ def prune_device_cmd(
         typer.echo("Re-run with --execute to actually delete.")
 
 
+@app.command("build-browse")
+def build_browse_cmd(
+    clean: bool = typer.Option(
+        False, "--clean", help="Wipe and rebuild the tree (it only holds links, never sole copies)"
+    ),
+):
+    """(Re)build the human-browsable date/timestamp tree from the catalog.
+
+    Layout: browse/<YYYY>/<YYYY-MM-DD>/<YYYYMMDD_HHMMSS>_<original-name>
+    (formats configurable under [browse] in config.toml). Runs automatically
+    during ingest; use this to backfill an existing library or after
+    changing the formats.
+    """
+    from .browse import rebuild_browse
+    from .db import open_session
+
+    cfg = _config()
+    with open_session(cfg) as session:
+        r = rebuild_browse(session, cfg, clean=clean)
+    typer.echo(f"Browse tree at {cfg.browse_dir}: {r.linked} linked, "
+               f"{r.skipped_undated} undated skipped, {r.skipped_missing} missing skipped")
+    for f in r.failures[:20]:
+        typer.echo(f"  FAILED {f}", err=True)
+    raise typer.Exit(1 if r.failures else 0)
+
+
 @app.command()
 def restore(
     dest: Path = typer.Option(..., "--dest", help="Destination folder"),

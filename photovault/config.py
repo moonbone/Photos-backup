@@ -45,6 +45,17 @@ class VerifyConfig:
 
 
 @dataclass
+class BrowseConfig:
+    """Human-browsable local tree: date folders + capture-timestamp filename prefix."""
+
+    enabled: bool = True
+    path: str | None = None  # default: <library>/browse
+    group_format: str = "%Y/%Y-%m-%d"  # strftime -> folder per day, inside a year folder
+    prefix_format: str = "%Y%m%d_%H%M%S"  # strftime -> prepended so name-sort == time-sort
+    link: str = "hardlink"  # hardlink | copy | symlink
+
+
+@dataclass
 class WebConfig:
     host: str = "127.0.0.1"
     port: int = 8420
@@ -61,6 +72,7 @@ class Config:
     ingest: IngestConfig = field(default_factory=IngestConfig)
     verify: VerifyConfig = field(default_factory=VerifyConfig)
     web: WebConfig = field(default_factory=WebConfig)
+    browse: BrowseConfig = field(default_factory=BrowseConfig)
 
     # -- derived paths -------------------------------------------------
     @property
@@ -82,6 +94,12 @@ class Config:
     @property
     def reports_dir(self) -> Path:
         return self.library_path / "reports"
+
+    @property
+    def browse_dir(self) -> Path:
+        if self.browse.path:
+            return Path(self.browse.path).expanduser()
+        return self.library_path / "browse"
 
     @property
     def staging_root(self) -> Path:
@@ -142,6 +160,13 @@ def load_config(path: str | Path | None = None) -> Config:
             port=data.get("web", {}).get("port", 8420),
             token=data.get("web", {}).get("token"),
             upload_source=data.get("web", {}).get("upload_source", "uploads"),
+        ),
+        browse=BrowseConfig(
+            enabled=data.get("browse", {}).get("enabled", True),
+            path=data.get("browse", {}).get("path"),
+            group_format=data.get("browse", {}).get("group_format", "%Y/%Y-%m-%d"),
+            prefix_format=data.get("browse", {}).get("prefix_format", "%Y%m%d_%H%M%S"),
+            link=data.get("browse", {}).get("link", "hardlink"),
         ),
     )
     return cfg

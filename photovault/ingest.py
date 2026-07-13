@@ -244,6 +244,12 @@ def _ingest_new(
         pair_group=pair,
         **fields,
     )
+
+    # human-browsable tree (lazy import: browse.py imports from this module)
+    from .browse import add_to_browse
+
+    add_to_browse(config, asset, path.name)
+
     session.add(asset)
     session.add(
         AssetInstance(
