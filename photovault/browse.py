@@ -12,6 +12,7 @@ falling back to copies when the browse path is on another filesystem.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -35,12 +36,37 @@ def _capture_dt(asset: Asset) -> datetime | None:
         return None
 
 
+# Filenames that already start with a timestamp prefix (e.g. re-ingesting a
+# library previously organized this way, or migrating an existing collection
+# that uses the same convention) would get a redundant second prefix.
+# Strip a recognized leading timestamp — but only when something meaningful
+# remains after it.
+_EXISTING_PREFIX_RES = [
+    re.compile(r"^\d{8}[_-]\d{6}[_\- ]+"),  # 20240711_183000_
+    re.compile(r"^\d{4}-\d{2}-\d{2}[ _T]\d{2}[.\-]\d{2}[.\-]\d{2}[_\- ]+"),  # 2024-07-11 18.30.00_
+]
+
+_WINDOWS_UNSAFE = re.compile(r'[<>:"|?*]')
+
+
+def _strip_existing_prefix(name: str) -> str:
+    for pattern in _EXISTING_PREFIX_RES:
+        m = pattern.match(name)
+        if m and Path(name[m.end():]).stem:
+            return name[m.end():]
+    return name
+
+
 def browse_target(config: Config, asset: Asset, original_filename: str) -> Path | None:
     dt = _capture_dt(asset)
     if dt is None:
         return None
     folder = config.browse_dir / dt.strftime(config.browse.group_format)
-    return folder / f"{dt.strftime(config.browse.prefix_format)}_{original_filename}"
+    base = _strip_existing_prefix(original_filename)
+    name = f"{dt.strftime(config.browse.prefix_format)}_{base}"
+    # keep names valid on Windows/NTFS regardless of configured formats
+    name = _WINDOWS_UNSAFE.sub(".", name)
+    return folder / name
 
 
 def _place(src: Path, dest: Path, mode: str) -> None:

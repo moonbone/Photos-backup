@@ -64,7 +64,13 @@ The catalog is snapshotted to the bucket after every sync. Point a fresh PhotoVa
 
 ## Stack
 
-Python 3.12 · Typer (CLI) · FastAPI (API/web) · SQLAlchemy + SQLite (catalog) · boto3 (S3) · ExifTool via PyExifTool (metadata) · Pillow (thumbnails)
+Python 3.11+ · Typer (CLI) · FastAPI (API/web) · SQLAlchemy + SQLite (catalog) · boto3 (S3) · ExifTool (metadata) · Pillow (thumbnails)
+
+Runs on Linux, macOS, and Windows. Browse-tree hardlinks work on NTFS
+(Windows) and all Unix filesystems; on filesystems without hardlink support
+(FAT32/exFAT drives) PhotoVault falls back to copies automatically, and browse
+filenames are sanitized to stay valid on Windows regardless of configured
+formats. On Windows, install ExifTool from exiftool.org and ensure it's on PATH.
 
 ## Quick start
 
@@ -85,6 +91,27 @@ photovault serve                                       # browse at http://localh
 
 Or with Docker: put `config.toml` in `./config/`, then `docker compose up -d`
 (runs the web UI plus the `watch` ingest/sync daemon).
+
+## Migrating an existing photo library
+
+Point ingest at your current collection — `--link` hardlinks originals into
+PhotoVault's library instead of copying, so migrating on the same disk uses
+**no extra space**:
+
+```bash
+photovault ingest /path/to/old-photos --source legacy-library --link
+photovault sync && photovault verify --remote
+photovault check-device /path/to/old-photos   # exit 0 = old library fully backed up
+```
+
+Everything is re-dated from EXIF (or filename, or mtime — recorded per photo),
+deduplicated, and laid out fresh in the browse tree regardless of how the old
+folders were organized. Filenames that already carry a `20240711_183000_`-style
+timestamp prefix are recognized and not double-prefixed. Once `check-device`
+reports 100% SAFE, the old layout can be retired (`prune-device` if you want
+PhotoVault to do it safely). Note that with `--link` the library object and the
+old file are the same bytes on disk — don't edit old files in place afterwards;
+retire them instead.
 
 The safe-deletion loop:
 

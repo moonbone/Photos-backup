@@ -6,6 +6,7 @@ independently of upload progress.
 """
 from __future__ import annotations
 
+import os
 import shutil
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -77,12 +78,17 @@ def find_sidecars(root: Path) -> dict[str, Path]:
 
 
 def ingest_path(
-    session: Session, config: Config, root: Path, source_name: str
+    session: Session, config: Config, root: Path, source_name: str, link: bool = False
 ) -> IngestResult:
-    """One-shot ingest of every media file under `root` for the given source."""
+    """One-shot ingest of every media file under `root` for the given source.
+
+    `link=True` hardlinks originals into the library instead of copying —
+    for migrating a large existing collection on the same filesystem with
+    no extra disk usage (falls back to copying across filesystems).
+    """
     root = Path(root)
     files = iter_media_files(root)
-    return ingest_files(session, config, files, source_name, root=root)
+    return ingest_files(session, config, files, source_name, root=root, link=link)
 
 
 def ingest_files(
@@ -91,6 +97,7 @@ def ingest_files(
     files: list[Path],
     source_name: str,
     root: Path | None = None,
+    link: bool = False,
 ) -> IngestResult:
     config.ensure_dirs()
     src_cfg = config.source(source_name)
@@ -130,7 +137,7 @@ def ingest_files(
                     continue
                 _ingest_new(
                     session, config, path, sha, rel, source, run.id,
-                    metadata.get(path, {}), sidecars, root,
+                    metadata.get(path, {}), sidecars, root, link=link,
                 )
                 result.files_new += 1
                 result.new_shas.append(sha)
@@ -193,6 +200,7 @@ def _ingest_new(
     meta: dict,
     sidecars: dict[str, Path],
     root: Path | None,
+    link: bool = False,
 ) -> None:
     ext = path.suffix.lower().lstrip(".")
     kind = kind_for_ext(ext)
@@ -207,12 +215,18 @@ def _ingest_new(
     )
     fields = core_fields(meta)
 
-    # copy the original into the content-addressed library
+    # copy (or, for in-place migration, hardlink) the original into the library
     dest = object_path(config, sha, ext)
     if not dest.exists():
         dest.parent.mkdir(parents=True, exist_ok=True)
         tmp = dest.with_suffix(dest.suffix + ".part")
-        shutil.copy2(path, tmp)
+        if link:
+            try:
+                os.link(path, tmp)
+            except OSError:  # cross-filesystem or FS without hardlinks
+                shutil.copy2(path, tmp)
+        else:
+            shutil.copy2(path, tmp)
         tmp.rename(dest)
 
     # sidecar (DSC_0042.xmp or DSC_0042.NEF.xmp next to the file)

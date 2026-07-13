@@ -48,6 +48,13 @@ def init():
 def ingest(
     path: Path = typer.Argument(..., exists=True, help="Folder to ingest"),
     source: str = typer.Option(..., "--source", "-s", help="Source name (e.g. phone-a, dslr)"),
+    link: bool = typer.Option(
+        False,
+        "--link",
+        help="Hardlink originals into the library instead of copying — no extra disk "
+        "space when migrating an existing collection on the same filesystem "
+        "(falls back to copying across filesystems)",
+    ),
 ):
     """Hash, extract metadata, thumbnail, and catalog everything under PATH."""
     from .db import open_session
@@ -55,7 +62,7 @@ def ingest(
 
     cfg = _config()
     with open_session(cfg) as session:
-        r = ingest_path(session, cfg, path, source)
+        r = ingest_path(session, cfg, path, source, link=link)
     typer.echo(
         f"Ingested from {path} (source: {source}): "
         f"{r.files_new} new, {r.files_duplicate} duplicate, {r.files_failed} failed "
